@@ -893,7 +893,7 @@ def handle_start(
     reply_markup = {
         "inline_keyboard": [
             [
-                {"text": "Add to group", "url": "https://t.me/notificationhistorybot?startgroup=start&admin=change_info+post_messages+delete_messages+manage_topics"}
+                {"text": "Add to group", "url": f"https://t.me/notificationhistorybot?startgroup=connect_{setup_code}&admin=change_info+post_messages+delete_messages+manage_topics"}
             ],
             [
                 {"text": "Commonthread", "url": "https://t.me/commonthread"}
@@ -1249,7 +1249,12 @@ def process_telegram_update(
 
     if command == "/start":
 
-        handle_start(message)
+        parts = text.split(maxsplit=1)
+        if len(parts) > 1 and parts[1].startswith("connect_"):
+            message["text"] = f"/connect {parts[1].split('_')[1]}"
+            handle_connect(message)
+        else:
+            handle_start(message)
 
     elif command == "/key":
 
