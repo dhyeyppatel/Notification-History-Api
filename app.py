@@ -849,7 +849,7 @@ def get_customized_macro(api_key):
 
         if WEBHOOK_URL:
             content = content.replace(
-                "https://YOUR-APP.onrender.com",
+                "https://noti.dhyey.cc",
                 WEBHOOK_URL.rstrip('/')
             )
 

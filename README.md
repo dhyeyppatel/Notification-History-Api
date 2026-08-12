@@ -74,7 +74,7 @@ Example:
 
 ```text
 DB_NAME=notification_history
-WEBHOOK_URL=https://your-service.onrender.com
+WEBHOOK_URL=https://noti.dhyey.cc
 ```
 
 ### 5. Start the Bot
@@ -121,7 +121,7 @@ Configure the HTTP Request action inside the imported macro:
 URL:
 
 ```text
-https://your-service.onrender.com/api/notification
+https://noti.dhyey.cc/api/notification
 ```
 
 Header:

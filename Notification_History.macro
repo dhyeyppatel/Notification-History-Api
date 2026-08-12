@@ -59,7 +59,7 @@
           "saveResponseUseAllFilesAccess": false,
           "saveReturnCodeToVariable": false,
           "saveReturnHeadersToVariable": false,
-          "urlToOpen": "https://YOUR-APP.onrender.com/api/notification",
+          "urlToOpen": "https://noti.dhyey.cc/api/notification",
           "useAllFilesAccess": false,
           "useLocalFileUri": false,
           "useStaticContentBodyFile": true
