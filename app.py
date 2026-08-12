@@ -1437,7 +1437,7 @@ def receive_notification():
     user = get_api_user()
 
     if not user:
-
+        logger.warning("Notification rejected: Unauthorized")
         return jsonify({
             "success": False,
             "error": "Unauthorized"
@@ -1450,7 +1450,7 @@ def receive_notification():
     if not check_rate_limit(
         user["telegram_user_id"]
     ):
-
+        logger.warning("Notification rejected: Rate limit exceeded for user %s", user["telegram_user_id"])
         return jsonify({
             "success": False,
             "error": "Rate limit exceeded"
@@ -1461,7 +1461,7 @@ def receive_notification():
     # ------------------------------------------
 
     if not request.is_json:
-
+        logger.warning("Notification rejected: JSON required")
         return jsonify({
             "success": False,
             "error": "JSON required"
@@ -1475,7 +1475,7 @@ def receive_notification():
         data,
         dict
     ):
-
+        logger.warning("Notification rejected: Invalid JSON")
         return jsonify({
             "success": False,
             "error": "Invalid JSON"
@@ -1490,11 +1490,13 @@ def receive_notification():
     )
 
     if not app_name:
-
+        logger.warning("Notification rejected: app is required")
         return jsonify({
             "success": False,
             "error": "app is required"
         }), 400
+
+    logger.info("Processing incoming notification for app: %s", app_name)
 
     # ------------------------------------------
     # Find connected group
@@ -1506,7 +1508,7 @@ def receive_notification():
     })
 
     if not group:
-
+        logger.warning("Notification rejected: No Telegram group connected for user %s", user["telegram_user_id"])
         return jsonify({
             "success": False,
             "error":
@@ -1560,6 +1562,7 @@ def receive_notification():
             message,
             topic_id
         )
+        logger.info("Successfully forwarded notification to Telegram topic: %s", app_name)
 
     except Exception as exc:
 
