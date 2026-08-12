@@ -1,0 +1,118 @@
+{
+  "globalVariables": [],
+  "macro": {
+    "aiGenerated": 0,
+    "breakpoints": [],
+    "disabledTimestamp": 0,
+    "exportedActionBlocks": [],
+    "forceEvenIfNotEnabledTimestamp": 0,
+    "isActionBlock": false,
+    "isExtra": false,
+    "isFavourite": false,
+    "lastEditedTimestamp": 1782578113567,
+    "localVariables": [],
+    "localVarsAlphabetical": true,
+    "m_GUID": -5445771969415014918,
+    "m_actionList": [
+      {
+        "requestConfig": {
+          "allFilesAccessPath": "",
+          "allowAnyCertificate": false,
+          "basicAuthEnabled": false,
+          "basicAuthPassword": "",
+          "basicAuthUsername": "",
+          "blockNextAction": false,
+          "clientCertEnabled": false,
+          "clientCertKeyStoreDisplayName": "",
+          "clientCertKeyStoreUri": "",
+          "clientCertPassword": "",
+          "contentBodyDynamicFileName": "",
+          "contentBodyFileDisplayName": "",
+          "contentBodyFileUri": "",
+          "contentBodyFolderDisplayName": "",
+          "contentBodyFolderUri": "",
+          "contentBodySource": 0,
+          "contentBodyText": "{\n  \"app\": \"{not_app_name}\",\n  \"title\": \"{not_title}\",\n  \"text\": \"💬 Message:\\n{notification}\\n\\n📄 Expanded Content:\\n{not_text_big}\\n\\n📋 Additional Lines:\\n{not_text_lines}\\n\\n🔹 Account / Sub Text:\\n{not_sub_text}\\n\\n⚡ Preview:\\n{not_ticker}\\n\\n🎯 Available Actions:\\n{not_action_names}\\n\\n━━━━━━━━━━━━━━━━━━━━\\n\\n🔔 Channel:\\n{not_channel}\",\n  \"package\": \"{not_app_package}\"\n}",
+          "contentType": "application/json",
+          "followRedirects": true,
+          "headerParams": [
+            {
+              "paramName": "Authorization",
+              "paramValue": "Bearer YOUR_API_KEY"
+            }
+          ],
+          "localFileUri": "",
+          "maxTotalDurationSeconds": 3600,
+          "prettifyJson": false,
+          "proxyEnabled": false,
+          "proxyHost": "",
+          "proxyPort": 8080,
+          "proxyType": 0,
+          "queryParams": [],
+          "requestTimeOutSeconds": 30,
+          "requestType": 1,
+          "saveResponseAllFilesAccessPath": "",
+          "saveResponseFileName": "",
+          "saveResponseFolderPathDisplayName": "",
+          "saveResponseFolderPathUri": "",
+          "saveResponseType": 0,
+          "saveResponseUseAllFilesAccess": false,
+          "saveReturnCodeToVariable": false,
+          "saveReturnHeadersToVariable": false,
+          "urlToOpen": "https://YOUR-APP.onrender.com/api/notification",
+          "useAllFilesAccess": false,
+          "useLocalFileUri": false,
+          "useStaticContentBodyFile": true
+        },
+        "disableLogging": false,
+        "m_SIGUID": -5286153848054189194,
+        "m_classType": "HttpRequestAction",
+        "m_comment": "",
+        "m_constraintList": [],
+        "m_isDisabled": false,
+        "m_isOrCondition": false
+      }
+    ],
+    "m_category": "Uncategorized",
+    "m_completed": true,
+    "m_constraintList": [],
+    "m_description": "Universal notification forwarder for Notification History API",
+    "m_descriptionOpen": false,
+    "m_enabled": true,
+    "m_excludeLog": false,
+    "m_headingColor": -11382190,
+    "m_isOrCondition": false,
+    "m_name": "Notification History by: @commonthread",
+    "m_triggerList": [
+      {
+        "enableRegex": false,
+        "ignoreCase": true,
+        "m_applicationNameList": [
+          "Any Application"
+        ],
+        "m_exactMatch": false,
+        "m_excludeApps": false,
+        "m_excludes": false,
+        "m_ignoreOngoing": false,
+        "m_option": 0,
+        "m_packageNameList": [
+          "Any Application"
+        ],
+        "m_soundOption": 0,
+        "m_supressMultiples": false,
+        "m_textContent": "",
+        "matchOptionMessage": 0,
+        "matchOptionTitle": 0,
+        "separateTitleAndMessage": false,
+        "disableLogging": false,
+        "m_SIGUID": -8854093398054847802,
+        "m_classType": "NotificationTrigger",
+        "m_comment": "",
+        "m_constraintList": [],
+        "m_isDisabled": false,
+        "m_isOrCondition": false
+      }
+    ]
+  },
+  "macroExportVersion": 1
+}

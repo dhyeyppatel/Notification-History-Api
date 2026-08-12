@@ -114,13 +114,11 @@ The bot will connect the group to your account.
 
 ### 7. MacroDroid
 
-Create one Notification Received trigger.
+Import the `Notification_History.macro` file provided in this repository into MacroDroid.
 
-Do not restrict it to WhatsApp or Gmail.
+Configure the HTTP Request action inside the imported macro:
 
-The macro should receive notifications from all applications.
-
-Send a POST request to:
+URL:
 
 ```text
 https://your-service.onrender.com/api/notification
@@ -132,22 +130,9 @@ Header:
 Authorization: Bearer YOUR_API_KEY
 ```
 
-Content-Type:
+Make sure to replace `YOUR_API_KEY` with the key provided by the bot.
 
-```text
-application/json
-```
-
-Body:
-
-```json
-{
-  "app": "WhatsApp",
-  "title": "Dhyey",
-  "text": "Hello!",
-  "package": "com.whatsapp"
-}
-```
+The macro is pre-configured to send a rich JSON payload to the API containing the notification title, message, expanded content, sub-text, actions, and package name.
 
 Use MacroDroid notification variables for the actual notification values.
 
