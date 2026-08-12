@@ -826,8 +826,8 @@ def build_notification_message(
         "━━━━━━━━━━━━━━━━━━━━\n",
         f"📦 Package:\n<code>{package_name}</code>\n",
         f"🔔 Channel:\n{channel}   ━━━━━━━━━━━━━━━━━━━━",
-        "🤖 Forwarded by Dhyey Notify Bot",
-        "Service by @commonthread"
+        "🤖 Forwarded by @notificationhistorybot",
+        "<blockquote><b>Service by @commonthread ❤️</b></blockquote>"
     ]
 
     return "\n".join(lines)
