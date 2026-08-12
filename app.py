@@ -193,6 +193,61 @@ def send_message(
     )
 
 
+def send_document(
+    chat_id,
+    document_name,
+    document_content,
+    caption=None
+):
+
+    if not BOT_TOKEN:
+        raise RuntimeError(
+            "TELEGRAM_BOT_TOKEN is missing"
+        )
+
+    payload = {
+        "chat_id": chat_id
+    }
+    if caption:
+        payload["caption"] = caption
+        payload["parse_mode"] = "HTML"
+
+    files = {
+        "document": (document_name, document_content)
+    }
+
+    response = requests.post(
+        f"{TELEGRAM_API}/sendDocument",
+        data=payload,
+        files=files,
+        timeout=15
+    )
+
+    try:
+        data = response.json()
+    except Exception:
+        data = {
+            "ok": False,
+            "description": response.text
+        }
+
+    if not response.ok or not data.get("ok"):
+        logger.error(
+            "Telegram API error: method=sendDocument status=%s description=%s",
+            response.status_code,
+            data.get("description")
+        )
+
+        raise RuntimeError(
+            data.get(
+                "description",
+                "Telegram API request failed"
+            )
+        )
+
+    return data["result"]
+
+
 # ============================================================
 # TELEGRAM HELPERS
 # ============================================================
@@ -781,6 +836,29 @@ def build_notification_message(
     return "".join(lines)
 
 
+def get_customized_macro(api_key):
+    try:
+        macro_path = os.path.join(
+            os.path.dirname(__file__),
+            "Notification_History.macro"
+        )
+        with open(macro_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        content = content.replace("YOUR_API_KEY", api_key)
+
+        if WEBHOOK_URL:
+            content = content.replace(
+                "https://YOUR-APP.onrender.com",
+                WEBHOOK_URL.rstrip('/')
+            )
+
+        return content.encode("utf-8")
+    except Exception as exc:
+        logger.error("Failed to read macro template: %s", exc)
+        return None
+
+
 # ============================================================
 # BOT COMMANDS
 # ============================================================
@@ -863,6 +941,17 @@ def handle_start(
         text
     )
 
+    macro_bytes = get_customized_macro(api_key)
+    if macro_bytes:
+        send_document(
+            chat["id"],
+            "Notification_History.macro",
+            macro_bytes,
+            "📥 Here is your personalized MacroDroid file!\n\n"
+            "Simply download and import this into MacroDroid. "
+            "It already contains your API key and server URL."
+        )
+
 
 def handle_newkey(
     message
@@ -899,6 +988,15 @@ def handle_newkey(
             "Your previous API key is now invalid."
         )
     )
+
+    macro_bytes = get_customized_macro(api_key)
+    if macro_bytes:
+        send_document(
+            chat["id"],
+            "Notification_History.macro",
+            macro_bytes,
+            "📥 Here is your updated MacroDroid file with your new API key."
+        )
 
 
 def handle_connect(
