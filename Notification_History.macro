@@ -32,7 +32,7 @@
           "contentBodyFolderDisplayName": "",
           "contentBodyFolderUri": "",
           "contentBodySource": 0,
-          "contentBodyText": "{\n  \"app\": \"{not_app_name}\",\n  \"title\": \"{not_title}\",\n  \"text\": \"💬 Message:\\n{notification}\\n\\n📄 Expanded Content:\\n{not_text_big}\\n\\n📋 Additional Lines:\\n{not_text_lines}\\n\\n🔹 Account / Sub Text:\\n{not_sub_text}\\n\\n⚡ Preview:\\n{not_ticker}\\n\\n🎯 Available Actions:\\n{not_action_names}\\n\\n━━━━━━━━━━━━━━━━━━━━\\n\\n🔔 Channel:\\n{not_channel}\",\n  \"package\": \"{not_app_package}\"\n}",
+          "contentBodyText": "{\n  \"app\": \"{not_app_name}\",\n  \"title\": \"{not_title}\",\n  \"text\": \"{notification}\",\n  \"big_text\": \"{not_text_big}\",\n  \"lines\": \"{not_text_lines}\",\n  \"sub_text\": \"{not_sub_text}\",\n  \"ticker\": \"{not_ticker}\",\n  \"actions\": \"{not_action_names}\",\n  \"package\": \"{not_app_package}\",\n  \"channel\": \"{not_channel}\"\n}",
           "contentType": "application/json",
           "followRedirects": true,
           "headerParams": [

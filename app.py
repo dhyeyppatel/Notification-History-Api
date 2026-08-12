@@ -172,7 +172,8 @@ def telegram(method, payload=None, timeout=15):
 def send_message(
     chat_id,
     text,
-    message_thread_id=None
+    message_thread_id=None,
+    reply_markup=None
 ):
 
     payload = {
@@ -186,6 +187,9 @@ def send_message(
         payload["message_thread_id"] = int(
             message_thread_id
         )
+
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
 
     return telegram(
         "sendMessage",
@@ -369,6 +373,19 @@ def get_or_create_user(
     })
 
     if user:
+        if "api_key" not in user:
+            api_key = generate_api_key()
+            users_collection.update_one(
+                {"_id": user["_id"]},
+                {
+                    "$set": {
+                        "api_key": api_key,
+                        "api_key_hash": hash_secret(api_key),
+                        "updated_at": datetime.now(timezone.utc)
+                    }
+                }
+            )
+            user["api_key"] = api_key
         return user
 
     api_key = generate_api_key()
@@ -376,6 +393,7 @@ def get_or_create_user(
     document = {
         "telegram_user_id": telegram_user_id,
         "first_name": first_name,
+        "api_key": api_key,
         "api_key_hash": hash_secret(api_key),
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc)
@@ -393,8 +411,6 @@ def get_or_create_user(
             "telegram_user_id":
                 telegram_user_id
         })
-
-    document["api_key"] = api_key
 
     return document
 
@@ -783,57 +799,38 @@ def get_or_create_topic(
 def build_notification_message(
     data
 ):
+    def get_field(key, limit=MAX_NOTIFICATION_LENGTH):
+        return escape_html(clean_text(data.get(key, ""), limit))
 
-    app_name = escape_html(
-        normalize_app_name(
-            data.get("app")
-        )
-    )
-
-    title = escape_html(
-        clean_text(
-            data.get("title", ""),
-            500
-        )
-    )
-
-    text = escape_html(
-        clean_text(
-            data.get("text", ""),
-            MAX_NOTIFICATION_LENGTH
-        )
-    )
-
-    package_name = escape_html(
-        clean_text(
-            data.get("package", ""),
-            200
-        )
-    )
+    app_name = get_field("app", 100)
+    title = get_field("title", 500)
+    text = get_field("text")
+    big_text = get_field("big_text")
+    lines_text = get_field("lines")
+    sub_text = get_field("sub_text")
+    ticker = get_field("ticker")
+    actions = get_field("actions")
+    package_name = get_field("package", 200)
+    channel = get_field("channel", 200)
 
     lines = [
-        f"📱 <b>{app_name}</b>"
+        "🚨 <b>New Notification</b>\n",
+        f"📱 App: <b>{app_name}</b>",
+        f"👤 Sender: {title}\n",
+        f"💬 Message:\n{text}\n",
+        f"📄 Expanded Content:\n{big_text}\n",
+        f"📋 Additional Lines:\n{lines_text}\n",
+        f"🔹 Account / Sub Text:\n{sub_text}\n",
+        f"⚡ Preview:\n{ticker}\n",
+        f"🎯 Available Actions:\n{actions}\n",
+        "━━━━━━━━━━━━━━━━━━━━\n",
+        f"📦 Package:\n<code>{package_name}</code>\n",
+        f"🔔 Channel:\n{channel}   ━━━━━━━━━━━━━━━━━━━━",
+        "🤖 Forwarded by Dhyey Notify Bot",
+        "Service by @commonthread"
     ]
 
-    if title:
-
-        lines.append(
-            f"\n<b>{title}</b>"
-        )
-
-    if text:
-
-        lines.append(
-            f"\n{text}"
-        )
-
-    if package_name:
-
-        lines.append(
-            f"\n\n<code>{package_name}</code>"
-        )
-
-    return "".join(lines)
+    return "\n".join(lines)
 
 
 def get_customized_macro(api_key):
@@ -867,93 +864,48 @@ def handle_start(
     message
 ):
 
-    chat = message.get(
-        "chat",
-        {}
-    )
+    chat = message.get("chat", {})
+    user = message.get("from", {})
 
-    user = message.get(
-        "from",
-        {}
-    )
-
-    # Only allow setup from private chat.
     if chat.get("type") != "private":
-
         send_message(
             chat["id"],
-            "Please open a private chat with me "
-            "and use /start."
+            "Please open a private chat with me and use /start."
         )
-
         return
 
     telegram_user_id = user["id"]
+    db_user = get_or_create_user(telegram_user_id, user.get("first_name", ""))
 
-    db_user = get_or_create_user(
-        telegram_user_id,
-        user.get(
-            "first_name",
-            ""
-        )
-    )
-
-    api_key = None
-
-    if "api_key" in db_user:
-
-        api_key = db_user["api_key"]
-
-    else:
-
-        # Existing user: create a fresh key
-        # only if we cannot show the original.
-        api_key = create_new_api_key(
-            telegram_user_id
-        )
-
-    setup_code = create_setup_code(
-        telegram_user_id
-    )
+    setup_code = create_setup_code(telegram_user_id)
 
     text = (
-        "👋 <b>Notification History</b>\n\n"
-        "Your account is ready.\n\n"
-        "🔑 <b>Your API Key</b>\n"
-        f"<code>{escape_html(api_key)}</code>\n\n"
-        "⚠️ Keep this key private. "
-        "It is used by MacroDroid to "
-        "authenticate your notifications.\n\n"
+        "👋 <b>Welcome to Notification History!</b>\n\n"
+        "I can forward notifications from your Android phone directly into organized Telegram topics.\n\n"
+        "<b>Here is how to set me up:</b>\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
-        "1️⃣ Add me as an administrator "
-        "to your Telegram forum group.\n\n"
+        "1️⃣ Add me to your Telegram forum group (using the button below) and make me an <b>Administrator</b> with <b>Manage Topics</b> permission.\n\n"
         "2️⃣ In that group send:\n"
         f"<code>/connect {escape_html(setup_code)}</code>\n\n"
-        "3️⃣ Give me <b>Manage Topics</b> permission.\n\n"
-        "4️⃣ Install the universal MacroDroid "
-        "macro and use your API key.\n\n"
-        "I'll automatically create a topic "
-        "for each app."
+        "Once successfully connected, I will send you your API Key and your personalized MacroDroid file here in our private chat!"
     )
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "Add to group", "url": "https://t.me/commonthread"}
+            ]
+        ]
+    }
 
     send_message(
         chat["id"],
-        text
+        text,
+        reply_markup=reply_markup
     )
 
-    macro_bytes = get_customized_macro(api_key)
-    if macro_bytes:
-        send_document(
-            chat["id"],
-            "Notification_History.macro",
-            macro_bytes,
-            "📥 Here is your personalized MacroDroid file!\n\n"
-            "Simply download and import this into MacroDroid. "
-            "It already contains your API key and server URL."
-        )
 
-
-def handle_newkey(
+def handle_key(
     message
 ):
 
@@ -968,24 +920,21 @@ def handle_newkey(
     )
 
     if chat.get("type") != "private":
-
         send_message(
             chat["id"],
-            "Use /newkey in my private chat."
+            "Use /key in my private chat."
         )
-
         return
 
-    api_key = create_new_api_key(
-        user["id"]
-    )
+    db_user = get_or_create_user(user["id"], user.get("first_name", ""))
+    api_key = db_user.get("api_key")
 
     send_message(
         chat["id"],
         (
-            "🔐 <b>New API key generated</b>\n\n"
+            "🔑 <b>Your API key</b>\n\n"
             f"<code>{escape_html(api_key)}</code>\n\n"
-            "Your previous API key is now invalid."
+            "Keep this key private."
         )
     )
 
@@ -995,7 +944,7 @@ def handle_newkey(
             chat["id"],
             "Notification_History.macro",
             macro_bytes,
-            "📥 Here is your updated MacroDroid file with your new API key."
+            "📥 Here is your personalized MacroDroid file."
         )
 
 
@@ -1103,12 +1052,33 @@ def handle_connect(
             (
                 "✅ <b>Group connected!</b>\n\n"
                 f"📁 {escape_html(chat.get('title', 'Group'))}\n\n"
-                "Notifications sent using your API key "
-                "will now appear here.\n\n"
-                "🆕 A separate topic will automatically "
-                "be created for each app."
+                "I have sent your API key and personalized MacroDroid file to your private messages."
             )
         )
+
+        db_user = get_or_create_user(setup_user["telegram_user_id"])
+        api_key = db_user.get("api_key")
+
+        send_message(
+            setup_user["telegram_user_id"],
+            (
+                "✅ <b>Group connected successfully!</b>\n\n"
+                "🔑 <b>Your API Key</b>\n"
+                f"<code>{escape_html(api_key)}</code>\n\n"
+                "⚠️ Keep this key private.\n\n"
+                "<b>Next Step:</b>\n"
+                "Install the universal MacroDroid macro below. It is already configured with your API key."
+            )
+        )
+        
+        macro_bytes = get_customized_macro(api_key)
+        if macro_bytes:
+            send_document(
+                setup_user["telegram_user_id"],
+                "Notification_History.macro",
+                macro_bytes,
+                "📥 Your personalized MacroDroid file!"
+            )
 
     except Exception as exc:
 
@@ -1238,7 +1208,7 @@ def handle_help(
         (
             "📖 <b>Notification History Help</b>\n\n"
             "/start — Setup account\n"
-            "/newkey — Generate new API key\n"
+            "/key — Show your API key and macro file\n"
             "/status — Show group status\n"
             "/disconnect — Disconnect group\n"
             "/help — Show help\n\n"
@@ -1278,9 +1248,9 @@ def process_telegram_update(
 
         handle_start(message)
 
-    elif command == "/newkey":
+    elif command == "/key":
 
-        handle_newkey(message)
+        handle_key(message)
 
     elif command == "/connect":
 
