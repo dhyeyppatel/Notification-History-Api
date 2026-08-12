@@ -893,7 +893,10 @@ def handle_start(
     reply_markup = {
         "inline_keyboard": [
             [
-                {"text": "Add to group", "url": "https://t.me/commonthread"}
+                {"text": "Add to group", "url": "https://t.me/notificationhistorybot?startgroup=start&admin=change_info+post_messages+delete_messages+manage_topics"}
+            ],
+            [
+                {"text": "Commonthread", "url": "https://t.me/commonthread"}
             ]
         ]
     }
