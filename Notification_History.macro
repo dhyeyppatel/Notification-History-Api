@@ -32,8 +32,8 @@
           "contentBodyFolderDisplayName": "",
           "contentBodyFolderUri": "",
           "contentBodySource": 0,
-          "contentBodyText": "{\n  \"app\": \"{not_app_name}\",\n  \"title\": \"{not_title}\",\n  \"text\": \"{notification}\",\n  \"big_text\": \"{not_text_big}\",\n  \"lines\": \"{not_text_lines}\",\n  \"sub_text\": \"{not_sub_text}\",\n  \"ticker\": \"{not_ticker}\",\n  \"actions\": \"{not_action_names}\",\n  \"package\": \"{not_app_package}\",\n  \"channel\": \"{not_channel}\"\n}",
-          "contentType": "application/json",
+          "contentBodyText": "",
+          "contentType": "",
           "followRedirects": true,
           "headerParams": [
             {
@@ -48,9 +48,18 @@
           "proxyHost": "",
           "proxyPort": 8080,
           "proxyType": 0,
-          "queryParams": [],
+          "queryParams": [
+            {
+              "paramName": "chat_id",
+              "paramValue": "YOUR_CHAT_ID"
+            },
+            {
+              "paramName": "text",
+              "paramValue": "🚨 New Notification\n\n📱 App: {not_app_name}\n👤 Sender: {not_title}\n\n💬 Message:\n{notification}\n\n📄 Expanded Content:\n{not_text_big}\n\n📋 Additional Lines:\n{not_text_lines}\n\n🔹 Account / Sub Text:\n{not_sub_text}\n\n⚡ Preview:\n{not_ticker}\n\n🎯 Available Actions:\n{not_action_names}\n\n━━━━━━━━━━━━━━━━━━━━\n\n📦 Package:\n{not_app_package}\n\n🔔 Channel:\n{not_channel}\n\n━━━━━━━━━━━━━━━━━━━━\n🤖 Forwarded by Dhyey Notify Bot"
+            }
+          ],
           "requestTimeOutSeconds": 30,
-          "requestType": 1,
+          "requestType": 0,
           "saveResponseAllFilesAccessPath": "",
           "saveResponseFileName": "",
           "saveResponseFolderPathDisplayName": "",

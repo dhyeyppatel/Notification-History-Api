@@ -833,7 +833,7 @@ def build_notification_message(
     return "\n".join(lines)
 
 
-def get_customized_macro(api_key):
+def get_customized_macro(api_key, chat_id=None):
     try:
         macro_path = os.path.join(
             os.path.dirname(__file__),
@@ -842,7 +842,10 @@ def get_customized_macro(api_key):
         with open(macro_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        content = content.replace("YOUR_API_KEY", api_key)
+        content = content.replace("YOUR_API_KEY", str(api_key))
+        
+        if chat_id:
+            content = content.replace("YOUR_CHAT_ID", str(chat_id))
 
         if WEBHOOK_URL:
             content = content.replace(
@@ -941,7 +944,7 @@ def handle_key(
         )
     )
 
-    macro_bytes = get_customized_macro(api_key)
+    macro_bytes = get_customized_macro(api_key, chat["id"])
     if macro_bytes:
         send_document(
             chat["id"],
@@ -1074,7 +1077,7 @@ def handle_connect(
             )
         )
         
-        macro_bytes = get_customized_macro(api_key)
+        macro_bytes = get_customized_macro(api_key, setup_user["telegram_user_id"])
         if macro_bytes:
             send_document(
                 setup_user["telegram_user_id"],
