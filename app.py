@@ -62,16 +62,12 @@ mongo_client = None
 db = None
 
 users_collection = None
-groups_collection = None
-topics_collection = None
 
 
 def init_database():
     global mongo_client
     global db
     global users_collection
-    global groups_collection
-    global topics_collection
 
     if not MONGO_URI:
         raise RuntimeError("MONGO_URI is missing")
@@ -84,8 +80,6 @@ def init_database():
     db = mongo_client[DB_NAME]
 
     users_collection = db["users"]
-    groups_collection = db["groups"]
-    topics_collection = db["topics"]
 
     users_collection.create_index(
         [("telegram_user_id", ASCENDING)],
@@ -94,29 +88,6 @@ def init_database():
 
     users_collection.create_index(
         [("api_key_hash", ASCENDING)],
-        unique=True
-    )
-
-    users_collection.create_index(
-        [("setup_code_hash", ASCENDING)],
-        unique=True,
-        sparse=True
-    )
-
-    groups_collection.create_index(
-        [("chat_id", ASCENDING)],
-        unique=True
-    )
-
-    groups_collection.create_index(
-        [("owner_user_id", ASCENDING)]
-    )
-
-    topics_collection.create_index(
-        [
-            ("chat_id", ASCENDING),
-            ("app_key", ASCENDING)
-        ],
         unique=True
     )
 
@@ -441,70 +412,6 @@ def create_new_api_key(
 
 
 # ============================================================
-# SETUP CODE
-# ============================================================
-
-def create_setup_code(
-    telegram_user_id
-):
-
-    code = generate_setup_code()
-
-    users_collection.update_one(
-        {
-            "telegram_user_id":
-                telegram_user_id
-        },
-        {
-            "$set": {
-                "setup_code_hash":
-                    hash_secret(code),
-
-                "setup_code_created_at":
-                    datetime.now(timezone.utc)
-            }
-        }
-    )
-
-    return code
-
-
-def consume_setup_code(
-    code
-):
-
-    if not code:
-        return None
-
-    code = code.strip().upper()
-
-    user = users_collection.find_one(
-        {
-            "setup_code_hash":
-                hash_secret(code)
-        }
-    )
-
-    if not user:
-        return None
-
-    # Setup codes are single-use.
-    users_collection.update_one(
-        {
-            "_id": user["_id"]
-        },
-        {
-            "$unset": {
-                "setup_code_hash": "",
-                "setup_code_created_at": ""
-            }
-        }
-    )
-
-    return user
-
-
-# ============================================================
 # API AUTHENTICATION
 # ============================================================
 
@@ -582,217 +489,6 @@ def check_rate_limit(user_id):
 
 
 # ============================================================
-# GROUP MANAGEMENT
-# ============================================================
-
-def get_group(chat_id):
-
-    return groups_collection.find_one({
-        "chat_id": chat_id
-    })
-
-
-def connect_group(
-    chat,
-    user
-):
-
-    chat_id = chat.get("id")
-
-    groups_collection.update_one(
-        {
-            "chat_id": chat_id
-        },
-        {
-            "$set": {
-                "chat_id": chat_id,
-                "chat_title":
-                    chat.get(
-                        "title",
-                        "Telegram Group"
-                    ),
-                "chat_type":
-                    chat.get(
-                        "type",
-                        ""
-                    ),
-                "owner_user_id":
-                    user["telegram_user_id"],
-                "updated_at":
-                    datetime.now(timezone.utc)
-            },
-            "$setOnInsert": {
-                "created_at":
-                    datetime.now(timezone.utc)
-            }
-        },
-        upsert=True
-    )
-
-
-# ============================================================
-# TELEGRAM GROUP VALIDATION
-# ============================================================
-
-def validate_bot_admin(
-    chat_id
-):
-
-    bot_info = telegram(
-        "getMe"
-    )
-
-    bot_id = bot_info["id"]
-
-    member = telegram(
-        "getChatMember",
-        {
-            "chat_id": chat_id,
-            "user_id": bot_id
-        }
-    )
-
-    status = member.get(
-        "status"
-    )
-
-    if status not in (
-        "administrator",
-        "creator"
-    ):
-        return False, (
-            "I must be an administrator "
-            "in this group."
-        )
-
-    if status == "creator":
-        return True, None
-
-    can_manage_topics = member.get(
-        "can_manage_topics",
-        False
-    )
-
-    if not can_manage_topics:
-
-        return False, (
-            "I need the "
-            "Manage Topics permission."
-        )
-
-    return True, None
-
-
-def validate_forum_group(
-    chat_id
-):
-
-    chat = telegram(
-        "getChat",
-        {
-            "chat_id": chat_id
-        }
-    )
-
-    if not chat.get(
-        "is_forum",
-        False
-    ):
-
-        return False, (
-            "This group is not a forum. "
-            "Please enable Topics in "
-            "the group settings."
-        )
-
-    return True, chat
-
-
-# ============================================================
-# TOPICS
-# ============================================================
-
-topic_creation_lock = threading.Lock()
-
-
-def get_or_create_topic(
-    chat_id,
-    app_name
-):
-
-    key = app_key(app_name)
-
-    existing = topics_collection.find_one({
-        "chat_id": chat_id,
-        "app_key": key
-    })
-
-    if existing:
-        return existing["message_thread_id"]
-
-    # Prevent duplicate topic creation
-    # when multiple notifications arrive
-    # for a new app at the same time.
-    with topic_creation_lock:
-
-        existing = topics_collection.find_one({
-            "chat_id": chat_id,
-            "app_key": key
-        })
-
-        if existing:
-            return existing[
-                "message_thread_id"
-            ]
-
-        result = telegram(
-            "createForumTopic",
-            {
-                "chat_id": chat_id,
-                "name": normalize_app_name(
-                    app_name
-                )
-            }
-        )
-
-        thread_id = result[
-            "message_thread_id"
-        ]
-
-        document = {
-            "chat_id": chat_id,
-            "app_key": key,
-            "app_name":
-                normalize_app_name(app_name),
-            "message_thread_id":
-                thread_id,
-            "created_at":
-                datetime.now(timezone.utc)
-        }
-
-        try:
-
-            topics_collection.insert_one(
-                document
-            )
-
-        except DuplicateKeyError:
-
-            existing = topics_collection.find_one({
-                "chat_id": chat_id,
-                "app_key": key
-            })
-
-            if existing:
-
-                return existing[
-                    "message_thread_id"
-                ]
-
-        return thread_id
-
-
-# ============================================================
 # NOTIFICATION FORMAT
 # ============================================================
 
@@ -866,7 +562,6 @@ def get_customized_macro(api_key, chat_id=None):
 def handle_start(
     message
 ):
-
     chat = message.get("chat", {})
     user = message.get("from", {})
 
@@ -879,36 +574,31 @@ def handle_start(
 
     telegram_user_id = user["id"]
     db_user = get_or_create_user(telegram_user_id, user.get("first_name", ""))
-
-    setup_code = create_setup_code(telegram_user_id)
+    api_key = db_user.get("api_key")
 
     text = (
         "👋 <b>Welcome to Notification History!</b>\n\n"
-        "I can forward notifications from your Android phone directly into organized Telegram topics.\n\n"
-        "<b>Here is how to set me up:</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        "1️⃣ Add me to your Telegram forum group (using the button below) and make me an <b>Administrator</b> with <b>Manage Topics</b> permission.\n\n"
-        "2️⃣ In that group send:\n"
-        f"<code>/connect {escape_html(setup_code)}</code>\n\n"
-        "Once successfully connected, I will send you your API Key and your personalized MacroDroid file here in our private chat!"
+        "I will forward notifications from your Android phone directly to you here.\n\n"
+        "🔑 <b>Your API key</b>\n"
+        f"<code>{escape_html(api_key)}</code>\n\n"
+        "Keep this key private.\n\n"
+        "<b>Next Step:</b>\n"
+        "Install the personalized MacroDroid file sent below!"
     )
-
-    reply_markup = {
-        "inline_keyboard": [
-            [
-                {"text": "Add to group", "url": f"https://t.me/notificationhistorybot?startgroup=connect_{setup_code}&admin=change_info+post_messages+delete_messages+manage_topics"}
-            ],
-            [
-                {"text": "Commonthread", "url": "https://t.me/commonthread"}
-            ]
-        ]
-    }
 
     send_message(
         chat["id"],
-        text,
-        reply_markup=reply_markup
+        text
     )
+
+    macro_bytes = get_customized_macro(api_key, chat["id"])
+    if macro_bytes:
+        send_document(
+            chat["id"],
+            "Notification_History.macro",
+            macro_bytes,
+            "📥 Here is your personalized MacroDroid file."
+        )
 
 
 def handle_key(
@@ -954,253 +644,6 @@ def handle_key(
         )
 
 
-def handle_connect(
-    message
-):
-
-    chat = message.get(
-        "chat",
-        {}
-    )
-
-    user = message.get(
-        "from",
-        {}
-    )
-
-    if chat.get("type") not in (
-        "group",
-        "supergroup"
-    ):
-
-        send_message(
-            chat["id"],
-            "Use /connect inside your Telegram group."
-        )
-
-        return
-
-    text = message.get(
-        "text",
-        ""
-    )
-
-    parts = text.split(
-        maxsplit=1
-    )
-
-    if len(parts) != 2:
-
-        send_message(
-            chat["id"],
-            (
-                "Usage:\n"
-                "<code>/connect ABCD-1234</code>"
-            )
-        )
-
-        return
-
-    code = parts[1].strip()
-
-    setup_user = consume_setup_code(
-        code
-    )
-
-    if not setup_user:
-
-        send_message(
-            chat["id"],
-            (
-                "❌ Invalid or expired setup code.\n\n"
-                "Open my private chat and use /start "
-                "to get a new code."
-            )
-        )
-
-        return
-
-    try:
-
-        is_admin, error = validate_bot_admin(
-            chat["id"]
-        )
-
-        if not is_admin:
-
-            send_message(
-                chat["id"],
-                f"❌ {error}"
-            )
-
-            return
-
-        is_forum, result = validate_forum_group(
-            chat["id"]
-        )
-
-        if not is_forum:
-
-            send_message(
-                chat["id"],
-                f"❌ {result}"
-            )
-
-            return
-
-        connect_group(
-            chat,
-            setup_user
-        )
-
-        send_message(
-            chat["id"],
-            (
-                "✅ <b>Group connected!</b>\n\n"
-                f"📁 {escape_html(chat.get('title', 'Group'))}\n\n"
-                "I have sent your API key and personalized MacroDroid file to your private messages."
-            )
-        )
-
-        db_user = get_or_create_user(setup_user["telegram_user_id"])
-        api_key = db_user.get("api_key")
-
-        send_message(
-            setup_user["telegram_user_id"],
-            (
-                "✅ <b>Group connected successfully!</b>\n\n"
-                "🔑 <b>Your API Key</b>\n"
-                f"<code>{escape_html(api_key)}</code>\n\n"
-                "⚠️ Keep this key private.\n\n"
-                "<b>Next Step:</b>\n"
-                "Install the universal MacroDroid macro below. It is already configured with your API key."
-            )
-        )
-        
-        macro_bytes = get_customized_macro(api_key, setup_user["telegram_user_id"])
-        if macro_bytes:
-            send_document(
-                setup_user["telegram_user_id"],
-                "Notification_History.macro",
-                macro_bytes,
-                "📥 Your personalized MacroDroid file!"
-            )
-
-    except Exception as exc:
-
-        logger.error(
-            "Connect error: %s",
-            type(exc).__name__
-        )
-
-        send_message(
-            chat["id"],
-            (
-                "❌ I couldn't connect this group.\n\n"
-                "Make sure I am an administrator and "
-                "have Manage Topics permission."
-            )
-        )
-
-
-def handle_status(
-    message
-):
-
-    chat = message.get(
-        "chat",
-        {}
-    )
-
-    group = get_group(
-        chat["id"]
-    )
-
-    if not group:
-
-        send_message(
-            chat["id"],
-            (
-                "❌ This group is not connected.\n\n"
-                "Use /connect CODE."
-            )
-        )
-
-        return
-
-    topic_count = topics_collection.count_documents({
-        "chat_id": chat["id"]
-    })
-
-    send_message(
-        chat["id"],
-        (
-            "📊 <b>Notification History Status</b>\n\n"
-            f"📁 Group: "
-            f"{escape_html(group.get('chat_title', ''))}\n"
-            f"🧵 Topics: <b>{topic_count}</b>\n\n"
-            "🟢 Connected"
-        )
-    )
-
-
-def handle_disconnect(
-    message
-):
-
-    chat = message.get(
-        "chat",
-        {}
-    )
-
-    user = message.get(
-        "from",
-        {}
-    )
-
-    group = get_group(
-        chat["id"]
-    )
-
-    if not group:
-
-        send_message(
-            chat["id"],
-            "This group is not connected."
-        )
-
-        return
-
-    if group.get(
-        "owner_user_id"
-    ) != user.get("id"):
-
-        send_message(
-            chat["id"],
-            "❌ Only the account that connected "
-            "this group can disconnect it."
-        )
-
-        return
-
-    groups_collection.delete_one({
-        "chat_id": chat["id"]
-    })
-
-    topics_collection.delete_many({
-        "chat_id": chat["id"]
-    })
-
-    send_message(
-        chat["id"],
-        (
-            "🔌 <b>Disconnected.</b>\n\n"
-            "This group will no longer receive "
-            "notifications from the API."
-        )
-    )
-
-
 def handle_help(
     message
 ):
@@ -1215,11 +658,8 @@ def handle_help(
             "📖 <b>Notification History Help</b>\n\n"
             "/start — Setup account\n"
             "/key — Show your API key and macro file\n"
-            "/status — Show group status\n"
-            "/disconnect — Disconnect group\n"
             "/help — Show help\n\n"
-            "Notifications are automatically "
-            "organized into Telegram topics."
+            "Notifications are sent directly to this chat."
         )
     )
 
@@ -1251,32 +691,10 @@ def process_telegram_update(
     command = command.split("@")[0]
 
     if command == "/start":
-
-        parts = text.split(maxsplit=1)
-        if len(parts) > 1 and parts[1].startswith("connect_"):
-            message["text"] = f"/connect {parts[1].split('_')[1]}"
-            handle_connect(message)
-        else:
-            handle_start(message)
-
+        handle_start(message)
     elif command == "/key":
-
         handle_key(message)
-
-    elif command == "/connect":
-
-        handle_connect(message)
-
-    elif command == "/status":
-
-        handle_status(message)
-
-    elif command == "/disconnect":
-
-        handle_disconnect(message)
-
     elif command == "/help":
-
         handle_help(message)
 
 
@@ -1480,49 +898,12 @@ def receive_notification():
     logger.info("Processing incoming notification for app: %s", app_name)
 
     # ------------------------------------------
-    # Find connected group
+    # Determine chat_id
     # ------------------------------------------
 
-    group = groups_collection.find_one({
-        "owner_user_id":
-            user["telegram_user_id"]
-    })
-
-    if not group:
-        logger.warning("Notification rejected: No Telegram group connected for user %s", user["telegram_user_id"])
-        return jsonify({
-            "success": False,
-            "error":
-                "No Telegram group connected"
-        }), 409
-
-    chat_id = group[
-        "chat_id"
-    ]
-
-    # ------------------------------------------
-    # Get/create topic
-    # ------------------------------------------
-
-    try:
-
-        topic_id = get_or_create_topic(
-            chat_id,
-            app_name
-        )
-
-    except Exception as exc:
-
-        logger.error(
-            "Topic creation failed: %s",
-            type(exc).__name__
-        )
-
-        return jsonify({
-            "success": False,
-            "error":
-                "Could not create Telegram topic"
-        }), 502
+    chat_id = request.args.get("chat_id")
+    if not chat_id:
+        chat_id = user["telegram_user_id"]
 
     # ------------------------------------------
     # Build message
@@ -1540,10 +921,9 @@ def receive_notification():
 
         send_message(
             chat_id,
-            message,
-            topic_id
+            message
         )
-        logger.info("Successfully forwarded notification to Telegram topic: %s", app_name)
+        logger.info("Successfully forwarded notification to PM for user: %s", user["telegram_user_id"])
 
     except Exception as exc:
 
@@ -1559,8 +939,7 @@ def receive_notification():
         }), 502
 
     return jsonify({
-        "success": True,
-        "topic": app_name
+        "success": True
     })
 
 
